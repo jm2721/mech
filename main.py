@@ -238,13 +238,11 @@ while True:
 	keys = pygame.key.get_pressed()
 	mech.move(keys)
 
-
 	collisions = pygame.sprite.spritecollide(mech, collider_group, False)
 	
 	# If an asteroid has reached the bottom, send it back to the top and reassign it an x value.
 	# This way I don't need to create new Collider objects
-	for element in colliders:
-	
+	for element in colliders:	
 		if element.Y > win.get_height()-55:
 			element.send_up()
 
@@ -281,9 +279,7 @@ while True:
 	else:
 		mech_group.update()
 		mech_group.draw(win)
-	
-	
-	
+		
 	# Display the score, hp, and high score	
 	hscore = FONT.render("High Score: " + str(current_high_score), 1, BLACK)
 	win.blit(hscore, (win.get_width() - 200, 30))
