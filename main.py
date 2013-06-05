@@ -49,28 +49,28 @@ class Mech(pygame.sprite.Sprite):
 	def move(self, keys_pressed):
 		global gravity
 		if (keys_pressed[K_UP]) and self.Y >= 30:
-			self.Y -= 10
+			self.Y -= 12
 			# Need to reset the following to zero because if the user presses K_UP, then the
 			# speed of gravity when K_UP is released will be zero.
 			gravity = 0
 		if (keys_pressed[K_DOWN]) and self.Y <= win.get_height() - 30:
-			self.Y += 10
+			self.Y += 12
 		if (keys_pressed[K_RIGHT]):
 			if self.X >= win.get_width():
 				self.X = 0
-			self.X += 10
+			self.X += 12
 		if (keys_pressed[K_LEFT]):
 			if self.X <= 30:
 				self.X = win.get_width()
-			self.X -= 10
+			self.X -= 12
 
 		if (self.Y <= (win.get_height() - 30)) and self.start >= 10:
 			self.Y += gravity	
 			gravity += 2
 			# Set a terminal velocity, otherwise the fall can get pretty fast
-			if gravity > 25:
-				gravity = 25
-	
+			if gravity > 30:
+				gravity = 30	
+
 class Collider(pygame.sprite.Sprite):
 	# start variable is for a bit of a delay between the time when the user opens the game and the asteroids actually start
 	# falling
@@ -145,11 +145,12 @@ def game_over():
 		for event in pygame.event.get():
 			if event.type == QUIT:
 				quit_all()
-			if event.key == K_y:
-				'''back_to_game = True'''
-				quit_all()
-			if event.key == K_ESCAPE:
-				quit_all()
+			'''if event.key == K_y:
+				back_to_game = True
+				quit_all()'''
+			if event.type == KEYDOWN:
+				if event.key == K_ESCAPE:
+					quit_all()
 		pygame.display.flip()
 		fps.tick(30)		
 def quit_all():
@@ -241,7 +242,7 @@ while True:
 	collisions = pygame.sprite.spritecollide(mech, collider_group, False)
 	
 	# If an asteroid has reached the bottom, send it back to the top and reassign it an x value.
-	# This way I don't need to create new Platform objects
+	# This way I don't need to create new Collider objects
 	for element in colliders:
 	
 		if element.Y > win.get_height()-55:
