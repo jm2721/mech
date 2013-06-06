@@ -25,6 +25,8 @@ class Mech(pygame.sprite.Sprite):
 	# small period of time so that the user can get ready a bit
 	start = 0	
 	invincible = False
+	# time_out is a timer for the invincibility. After 100 frames, the mech is no longer invincible
+	time_out = 0
 	def __init__(self, X, Y):
 		pygame.sprite.Sprite.__init__(self)
 		self.X = X
@@ -33,19 +35,37 @@ class Mech(pygame.sprite.Sprite):
 		self.Yspeed = 0
 		self.image = pygame.image.load('mech.png')
 		self.rect = self.image.get_rect()
+
 		self.hp = 15
 	def update(self, jetpack=False):
-		self.start += 1
-		if jetpack:
+		self.start += 1	
+		if jetpack and not self.invincible:
 			self.image = pygame.image.load('jetpack.png')
 			self.position = (self.X, self.Y)
 			self.rect = self.image.get_rect()
 			self.rect.center = self.position
-		if not jetpack:
+		if not jetpack and not self.invincible:
 			self.image = pygame.image.load('mech.png')
 			self.position = (self.X, self.Y)
 			self.rect = self.image.get_rect()
 			self.rect.center = self.position
+		if self.invincible:
+			if jetpack:
+				self.image = pygame.image.load('jetpack_inv.png')
+				self.position = (self.X, self.Y)
+				self.rect = self.image.get_rect()
+				self.rect.center = self.position
+			else:
+				self.image = pygame.image.load('mech_inv.png')
+				self.position = (self.X, self.Y)
+				self.rect = self.image.get_rect()
+				self.rect.center = self.position
+
+		if self.invincible:
+			self.time_out += 1
+		if self.invincible and self.time_out >= 300:
+			self.invincible = False
+			self.time_out = 0
 	#The parameter for this function is the list of pressed keys
 	def move(self, keys_pressed):
 		global gravity
@@ -72,19 +92,23 @@ class Mech(pygame.sprite.Sprite):
 			if gravity > 30:
 				gravity = 30	
 class PowerUp(pygame.sprite.Sprite):		
-	def __init__(self, image, invincible=False):
-		pygame.sprite.Sprite.__init__(self)
-		if not invincible:
-			self.image = pygame.image.load(image)
-			self.rect = self.image.get_rect()
+	def __init__(self, image, invincibility_pwrup=False):
+		pygame.sprite.Sprite.__init__(self)	
+		self.invincibility_pwrup = invincibility_pwrup
+		self.image = pygame.image.load(image)
+		self.rect = self.image.get_rect()
 		self.Y = 0
 		self.X = random.randint(1, win.get_width()-10)	
 		self.speed = random.randint(5, 10)
 
 	def update(self, hit_list, mech):
 		if self in hit_list:
-			mech.hp += 5
-			self.kill()
+			if self.invincibility_pwrup:
+				mech.invincible = True
+				self.kill()
+			elif not self.invincibility_pwrup:
+				mech.hp += 5
+				self.kill()
 		
 		self.Y += self.speed
 		if self.Y >= win.get_height():
@@ -123,6 +147,7 @@ class Collider(pygame.sprite.Sprite):
 				win.fill(RED)
 				mech.hp -= 1
 			elif not self.lava:
+				self.X = random.randint(1, win.get_width()-10)
 				self.Y = 0
 			if mech.hp == 0:
 				if score > int(current_high_score):
@@ -284,8 +309,15 @@ while True:
 		if r == 3:
 			colliders.append(Collider('ast3.png'))
 		collider_group.add(colliders[-1])
-	if time%500 == 0:
+
+	# As the game gets harder, hp powerups get scarcer
+	increment = 1000
+	if time%increment == 0:
 		pwrup = PowerUp('pwrup.png')
+		pwr_group.add(pwrup)
+		increment += 1000
+	if time%1500 == 0:
+		pwrup = PowerUp('inv.png', True)
 		pwr_group.add(pwrup)
 
 
@@ -301,12 +333,12 @@ while True:
 	# For some reason, on the first time collisions is called, it detects that the mech is colliding with all asteroids
 	# even though that is not the case
 	collisions = pygame.sprite.spritecollide(mech, collider_group, False)
-	
+	collide_with_powerup = pygame.sprite.spritecollide(mech, pwr_group, False)
+
 	if not first:
 		collider_group.update(collisions, mech)
 		collider_group.draw(win)
-		collide_with_powerup = pygame.sprite.spritecollide(mech, pwr_group, False)
-		pwr_group.update(collide_with_powerup, mech)
+		pwr_group.update(collide_with_powerup, mech)	
 		pwr_group.draw(win)
 	
 	if keys[K_UP]:
