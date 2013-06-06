@@ -24,6 +24,7 @@ class Mech(pygame.sprite.Sprite):
 	# after the game starts, the mech isn't affected by gravity for a
 	# small period of time so that the user can get ready a bit
 	start = 0	
+	invincible = False
 	def __init__(self, X, Y):
 		pygame.sprite.Sprite.__init__(self)
 		self.X = X
@@ -70,6 +71,27 @@ class Mech(pygame.sprite.Sprite):
 			# Set a terminal velocity, otherwise the fall can get pretty fast
 			if gravity > 30:
 				gravity = 30	
+class PowerUp(pygame.sprite.Sprite):		
+	def __init__(self, image, invincible=False):
+		pygame.sprite.Sprite.__init__(self)
+		if not invincible:
+			self.image = pygame.image.load(image)
+			self.rect = self.image.get_rect()
+		self.Y = 0
+		self.X = random.randint(1, win.get_width()-10)	
+		self.speed = random.randint(5, 10)
+
+	def update(self, hit_list, mech):
+		if self in hit_list:
+			mech.hp += 5
+			self.kill()
+		
+		self.Y += self.speed
+		if self.Y >= win.get_height():
+			self.kill()
+
+		self.rect = self.image.get_rect()
+		self.rect.center = (self.X, self.Y)
 
 class Collider(pygame.sprite.Sprite):
 	# start variable is for a bit of a delay between the time when the user opens the game and the asteroids actually start
@@ -84,7 +106,7 @@ class Collider(pygame.sprite.Sprite):
 			self.Y = win.get_height()
 			self.X = win.get_width()/2
 		if not self.lava:
-			self.SPEED = random.randint(5, 25)
+			self.speed = random.randint(5, 25)
 			pygame.sprite.Sprite.__init__(self)
 			self.image = pygame.image.load(image)
 			self.rect = self.image.get_rect()
@@ -93,26 +115,28 @@ class Collider(pygame.sprite.Sprite):
 	def update(self, hit_list, mech):
 		self.start += 1
 		if not self.lava and self.start >= 15:
-			self.Y += self.SPEED	
+			self.Y += self.speed
 		self.rect = self.image.get_rect()
 		self.rect.center = (self.X, self.Y)
 		if self in hit_list:
-			win.fill(RED)
-			mech.hp -= 1
+			if not mech.invincible:
+				win.fill(RED)
+				mech.hp -= 1
+			elif not self.lava:
+				self.Y = 0
 			if mech.hp == 0:
-				#print "GAME OVER"
-				#print "Your score was: " + str(score)
 				if score > int(current_high_score):
-					#print "That's a new high score!"
 					high_score.write(str(score))
 					high_score.close()
 				else:
 					high_score.write(current_high_score)
 					high_score.close()
 				game_over()
+			
+				
 	def send_up(self):
 		if not self.lava:
-			self.SPEED = random.randint(5, 25)
+			self.speed = random.randint(5, 25)
 			self.Y = 0
 			self.X = random.randint(1, win.get_width()-10)
 
@@ -193,6 +217,7 @@ high_score = open("HighScore.txt", 'w')
 
 #Initialize the score. Score just gets incremented once every time the game loop runs.
 score = 1
+time = 1
 
 # Initialize mech sprite and add it to a sprite group
 mech = Mech(win.get_width()/2, win.get_height()*3/4)
@@ -208,6 +233,9 @@ colliders = [
 collider_group = pygame.sprite.Group()
 for element in colliders:
 	collider_group.add(element)
+# Create the group that will contain the powerups
+# A powerup will be created around every 4000 frames
+pwr_group = pygame.sprite.Group()
 
 # First screen
 menu = 0
@@ -238,8 +266,6 @@ while True:
 	keys = pygame.key.get_pressed()
 	mech.move(keys)
 
-	collisions = pygame.sprite.spritecollide(mech, collider_group, False)
-	
 	# If an asteroid has reached the bottom, send it back to the top and reassign it an x value.
 	# This way I don't need to create new Collider objects
 	for element in colliders:	
@@ -249,7 +275,7 @@ while True:
 	# Get a new asteroid to increase the difficulty
 	# Asteroid type is random
 	# Limit is 9 asteroids, otherwise it becomes impossible	
-	if score%400 == 0 and len(colliders) <= 9:
+	if time%400 == 0 and len(colliders) <= 9:
 		r = random.randint(1, 3)
 		if r == 1:
 			colliders.append(Collider('ast1.png'))
@@ -258,7 +284,11 @@ while True:
 		if r == 3:
 			colliders.append(Collider('ast3.png'))
 		collider_group.add(colliders[-1])
-	
+	if time%500 == 0:
+		pwrup = PowerUp('pwrup.png')
+		pwr_group.add(pwrup)
+
+
 	for event in pygame.event.get():
 		if event.type == QUIT:
 			high_score.write(current_high_score)
@@ -267,13 +297,20 @@ while True:
 	win.fill(BLUE)
 	
 	score += 3
+	time += 1
 	# For some reason, on the first time collisions is called, it detects that the mech is colliding with all asteroids
 	# even though that is not the case
+	collisions = pygame.sprite.spritecollide(mech, collider_group, False)
+	
 	if not first:
 		collider_group.update(collisions, mech)
 		collider_group.draw(win)
+		collide_with_powerup = pygame.sprite.spritecollide(mech, pwr_group, False)
+		pwr_group.update(collide_with_powerup, mech)
+		pwr_group.draw(win)
 	
 	if keys[K_UP]:
+		# Calling update(True) displays the mech with the jetpack.
 		mech_group.update(True)
 		mech_group.draw(win)
 	else:
@@ -286,6 +323,7 @@ while True:
 	mech_hp = FONT.render("HP: " + str(mech.hp) + " Score: " + str(score), 1, BLACK)
 	win.blit(mech_hp, (win.get_width() - 200, 70))
 	
+	
 	first = False
 	pygame.display.flip()
-	fps.tick(30)		
+	fps.tick(30)	
