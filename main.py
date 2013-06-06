@@ -264,8 +264,7 @@ pwr_group = pygame.sprite.Group()
 
 # First screen
 menu = 0
-while True:
-	
+while True:	
 	for event in pygame.event.get():
 		if event.type == QUIT:
 			high_score.write(current_high_score)
@@ -276,9 +275,9 @@ while True:
 			
 			if event.key == K_SPACE:
 				menu = 1
-	win.fill(BLUE)
-	start_game = FONT.render("To start, hit ENTER or SPACE", 1, BLACK)
-	win.blit(start_game, (win.get_width()/3, win.get_height()/2))
+	
+	title = pygame.image.load('title_screen.png')
+	win.blit(title, (0,0))
 
 	pygame.display.flip()
 	fps.tick(30)
