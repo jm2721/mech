@@ -4,19 +4,14 @@ Image sources:
 Asteroids: small pieces of a photo on nssdc.gsfc.nasa.gov
 Lava is a piece cut from a picture of the sun on this website: http://cindeepthoughts.com/category/sun/
 Created the mech character myself on charas-project.net
+Powerups are just stuff I made in paint
 
 Notes:
 	Think about creating a scrolling background using Parallax (get it from github)
 	Add a little health bar to the mech in the future
-	Also add a class of sprite that if collided with the mech will give it health
-	Have a Game over screen, with your score and the highscore so people can hate themselves
-	for not getting it
-
 '''
 
 import pygame, sys, random
-from pygame.locals import *
-
 
 class Mech(pygame.sprite.Sprite):
 	# start variable gives the user 111 microseconds of delay between 
@@ -69,18 +64,18 @@ class Mech(pygame.sprite.Sprite):
 	#The parameter for this function is the list of pressed keys
 	def move(self, keys_pressed):
 		global gravity
-		if (keys_pressed[K_UP]) and self.Y >= 30:
+		if (keys_pressed[pygame.K_UP]) and self.Y >= 30:
 			self.Y -= 12
 			# Need to reset the following to zero because if the user presses K_UP, then the
 			# speed of gravity when K_UP is released will be zero.
 			gravity = 0
-		if (keys_pressed[K_DOWN]) and self.Y <= win.get_height() - 30:
+		if (keys_pressed[pygame.K_DOWN]) and self.Y <= win.get_height() - 30:
 			self.Y += 12
-		if (keys_pressed[K_RIGHT]):
+		if (keys_pressed[pygame.K_RIGHT]):
 			if self.X >= win.get_width():
 				self.X = 0
 			self.X += 12
-		if (keys_pressed[K_LEFT]):
+		if (keys_pressed[pygame.K_LEFT]):
 			if self.X <= 30:
 				self.X = win.get_width()
 			self.X -= 12
@@ -149,16 +144,8 @@ class Collider(pygame.sprite.Sprite):
 			elif not self.lava:
 				self.X = random.randint(1, win.get_width()-10)
 				self.Y = 0
-			if mech.hp == 0:
-				if score > int(current_high_score):
-					high_score.write(str(score))
-					high_score.close()
-				else:
-					high_score.write(current_high_score)
-					high_score.close()
-				game_over()
-			
-				
+			if mech.hp == 0:	
+				game_over()		
 	def send_up(self):
 		if not self.lava:
 			self.speed = random.randint(5, 25)
@@ -168,53 +155,122 @@ class Collider(pygame.sprite.Sprite):
 def game_over():
 	back_to_game = False
 	while True:	
+		global score
+		global mech
+		global gravity
+		global time
+		global current_high_score
+		global collider_group
+		global colliders
 		win.fill(BLACK)
 		keys_pressed = pygame.key.get_pressed()
 		
 		# Going back to the game needs some more revision
-		'''if back_to_game:
-			break'''
-		g_over = FONT.render("GAME OVER!", 1, RED)
+		if back_to_game:	
+			break
 		if int(current_high_score) > score:
 			your_score = FONT.render("Your score was: " + str(score), 1, RED)
 			your_high_score = FONT.render("High score is: " + str(current_high_score), 1, RED)
 		else:
-			your_score = FONT.render("Your score was: " + str(score) + " That's a new high score!", 1, RED)
+			your_score = FONT.render("Your score was: " + str(score) + ". That's a new high score!", 1, RED)
 			your_high_score = FONT.render("High score is: " + str(score), 1, RED)		
-		'''play_again = FONT.render("Would you like to play again? y/n", 1, RED)'''
-		exit_game_label = FONT.render("Hit ESC to exit", 1, RED)
+		play_again = FONT.render("Would you like to play again? y/n", 1, RED)
+		exit_game_label = FONT.render("or hit ESC to exit", 1, RED)
 	
-		win.blit(g_over, (win.get_width()/3, win.get_height()/2))
-		win.blit(your_score, (win.get_width()/3, win.get_height()/2 + 20))
-		win.blit(your_high_score, (win.get_width()/3, win.get_height()/2 + 40))	
-		win.blit(exit_game_label, (win.get_width()/3, win.get_height()/2 + 60))
+		game_over_screen = pygame.image.load('game_over.png')
+		win.blit(game_over_screen, (0, 0))
 		
-		'''if 1 in keys_pressed:
-			quit_all()'''
+		mid = win.get_height()/2	
+		win.blit(your_score, (win.get_width()/4 - 100, mid + 50))
+		win.blit(your_high_score, (win.get_width()/3, mid + 100))	
+		win.blit(play_again, (win.get_width()/3, mid + 150))
+		win.blit(exit_game_label, (win.get_width()/3, mid + 200))
+		
 		for event in pygame.event.get():
-			if event.type == QUIT:
+			if event.type == pygame.QUIT:
+				checkScore()
 				quit_all()
-			'''if event.key == K_y:
-				back_to_game = True
-				quit_all()'''
-			if event.type == KEYDOWN:
-				if event.key == K_ESCAPE:
+			if event.type == pygame.KEYDOWN:
+				if event.key == pygame.K_ESCAPE or event.key == pygame.K_n:
+					checkScore()
 					quit_all()
+				# I'm not proud of this next block of code. It's pretty messy
+				# and requires a lot of variables to be global
+				# Would be a lot cleaner if it were all in one function but
+				# I experienced some difficulties with that.
+				if event.key == pygame.K_y or event.key == pygame.K_RETURN:
+					back_to_game = True
+					gravity = 0
+					mech.hp = 15
+					mech.start = -5
+					mech.X = win.get_width()/2
+					mech.Y = win.get_height()*3/4 
+					if score > int(current_high_score):
+						current_high_score = score
+					score = 1
+					time = 1
+					for element in collider_group:
+						element.kill()
+					colliders = [
+						Collider('ast1.png'),
+						Collider('ast2.png'),
+						Collider('lava.png', True),	
+					]	
+					collider_group = pygame.sprite.Group()
+					for element in colliders:
+						collider_group.add(element)	
+
 		pygame.display.flip()
 		fps.tick(30)		
+
+# If checkScore() is called, that means the user has signalled somehow that the game has ended.
+# It checks if the new score is a high score or not, puts the corresponding number into the file,
+# and then closes the file stream
+def checkScore():
+	if score > int(current_high_score):
+		high_score.write(str(score))
+		high_score.close()
+	else:
+		high_score.write(str(current_high_score))
+		high_score.close()
+
 def quit_all():
 	pygame.quit()
 	sys.exit()
 
+def restart():
+	#Initialize the score. Score just gets incremented by 3 every time the game loop runs.
+	score = 1
+	time = 1
+
+	# Initialize mech sprite and add it to a sprite group
+	mech = Mech(win.get_width()/2, win.get_height()*3/4)
+	mech_group = pygame.sprite.Group()
+	mech_group.add(mech)
+
+	# Initialize collider sprites and add them to a sprite group
+	colliders = [
+		Collider('ast1.png'),
+		Collider('ast2.png'),
+		Collider('lava.png', True),	
+	]
+	collider_group = pygame.sprite.Group()
+	for element in colliders:
+		collider_group.add(element)
+	# Create the group that will contain the powerups
+	# A powerup will be created around every 4000 frames
+	pwr_group = pygame.sprite.Group()
+
+
 pygame.init()
 fps = pygame.time.Clock()
 
-FONT = pygame.font.SysFont(None, 20)
+FONT = pygame.font.SysFont(None, 40)
 RED = pygame.Color(255, 0, 0)
 BLUE = pygame.Color(0, 255, 255)
 BLACK = pygame.Color(0, 0, 0)
 
-win = pygame.display.set_mode((790, 790), DOUBLEBUF)
+win = pygame.display.set_mode((790, 790), pygame.DOUBLEBUF)
 pygame.display.set_caption('Jet Mech')
 
 # Global variable for gravity
@@ -240,7 +296,7 @@ if not current_high_score:
 high_score.close()
 high_score = open("HighScore.txt", 'w')
 
-#Initialize the score. Score just gets incremented once every time the game loop runs.
+#Initialize the score. Score just gets incremented by 3 every time the game loop runs.
 score = 1
 time = 1
 
@@ -266,14 +322,13 @@ pwr_group = pygame.sprite.Group()
 menu = 0
 while True:	
 	for event in pygame.event.get():
-		if event.type == QUIT:
+		if event.type == pygame.QUIT:
 			high_score.write(current_high_score)
 			quit_all()	
-		if event.type == KEYDOWN:
-			if event.key == K_RETURN:
-				menu = 1
-			
-			if event.key == K_SPACE:
+		if event.type == pygame.KEYDOWN:
+			if event.key == pygame.K_RETURN:
+				menu = 1	
+			if event.key == pygame.K_SPACE:
 				menu = 1
 	
 	title = pygame.image.load('title_screen.png')
@@ -286,14 +341,15 @@ while True:
 		break
 # Game loop
 first = True
-while True:
+running = True
+while running:
 	keys = pygame.key.get_pressed()
 	mech.move(keys)
 
 	# If an asteroid has reached the bottom, send it back to the top and reassign it an x value.
 	# This way I don't need to create new Collider objects
 	for element in colliders:	
-		if element.Y > win.get_height()-55:
+		if element.Y > win.get_height():
 			element.send_up()
 
 	# Get a new asteroid to increase the difficulty
@@ -321,7 +377,7 @@ while True:
 
 
 	for event in pygame.event.get():
-		if event.type == QUIT:
+		if event.type == pygame.QUIT:
 			high_score.write(current_high_score)
 			quit_all()	
 	
@@ -340,7 +396,7 @@ while True:
 		pwr_group.update(collide_with_powerup, mech)	
 		pwr_group.draw(win)
 	
-	if keys[K_UP]:
+	if keys[pygame.K_UP]:
 		# Calling update(True) displays the mech with the jetpack.
 		mech_group.update(True)
 		mech_group.draw(win)
@@ -349,9 +405,10 @@ while True:
 		mech_group.draw(win)
 		
 	# Display the score, hp, and high score	
-	hscore = FONT.render("High Score: " + str(current_high_score), 1, BLACK)
+	small_font = pygame.font.SysFont(None, 20)
+	hscore = small_font.render("High Score: " + str(current_high_score), 1, BLACK)
 	win.blit(hscore, (win.get_width() - 200, 30))
-	mech_hp = FONT.render("HP: " + str(mech.hp) + " Score: " + str(score), 1, BLACK)
+	mech_hp = small_font.render("HP: " + str(mech.hp) + " Score: " + str(score), 1, BLACK)
 	win.blit(mech_hp, (win.get_width() - 200, 70))
 	
 	
